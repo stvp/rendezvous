@@ -1,17 +1,13 @@
 package rendezvous
 
 import (
-	"hash"
-	"hash/crc32"
+	"bytes"
+	"crypto/md5"
 	"sort"
 )
 
-var (
-	crc32Table = crc32.MakeTable(crc32.Castagnoli)
-)
-
 type nodeScore struct {
-	node  []byte
+	node  string
 	score uint32
 }
 
@@ -22,14 +18,13 @@ func (s byScore) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s byScore) Less(i, j int) bool { return s[i].score < s[j].score }
 
 type Hash struct {
-	nodes  []nodeScore
-	hasher hash.Hash32
+	nodes []nodeScore
+	buf   bytes.Buffer
 }
 
 // New creates a new Hash with the given keys (optional).
 func New(nodes ...string) *Hash {
 	hash := &Hash{}
-	hash.hasher = crc32.New(crc32Table)
 	hash.Add(nodes...)
 	return hash
 }
@@ -37,28 +32,26 @@ func New(nodes ...string) *Hash {
 // Add takes any number of nodes and adds them to this Hash.
 func (h *Hash) Add(nodes ...string) {
 	for _, node := range nodes {
-		h.nodes = append(h.nodes, nodeScore{[]byte(node), 0})
+		h.nodes = append(h.nodes, nodeScore{node, 0})
 	}
 }
 
 // Get returns the node with the highest score for the given key. If this Hash
 // has no nodes, an empty string is returned.
 func (h *Hash) Get(key string) string {
-	keyBytes := []byte(key)
-
 	var maxScore uint32
-	var maxNode []byte
+	var maxNode string
 	var score uint32
 
 	for _, node := range h.nodes {
-		score = h.hash(node.node, keyBytes)
+		score = h.hash(node.node, key)
 		if score > maxScore {
 			maxScore = score
 			maxNode = node.node
 		}
 	}
 
-	return string(maxNode)
+	return maxNode
 }
 
 // GetN returns n nodes for the given key, ordered by descending score.
@@ -71,9 +64,8 @@ func (h *Hash) GetN(n int, key string) []string {
 		n = len(h.nodes)
 	}
 
-	keyBytes := []byte(key)
 	for i := 0; i < len(h.nodes); i++ {
-		h.nodes[i].score = h.hash(h.nodes[i].node, keyBytes)
+		h.nodes[i].score = h.hash(h.nodes[i].node, key)
 	}
 	sort.Sort(sort.Reverse(byScore(h.nodes)))
 
@@ -84,9 +76,12 @@ func (h *Hash) GetN(n int, key string) []string {
 	return nodes
 }
 
-func (h *Hash) hash(node, key []byte) uint32 {
-	h.hasher.Reset()
-	h.hasher.Write(key)
-	h.hasher.Write(node)
-	return h.hasher.Sum32()
+func (h *Hash) hash(node, key string) (val uint32) {
+	h.buf.Reset()
+	h.buf.WriteString(node)
+	h.buf.WriteString(key)
+	for _, b := range md5.Sum(h.buf.Bytes()) {
+		val = val + uint32(b)
+	}
+	return val
 }
