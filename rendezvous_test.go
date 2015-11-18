@@ -31,52 +31,48 @@ var (
 	}
 )
 
-type getTestcase struct {
-	key          string
-	expectedNode string
-}
+func TestGet(t *testing.T) {
+	table := New([]string{"a", "b", "c", "d", "e"})
 
-func TestHashGet(t *testing.T) {
-	hash := New("a", "b", "c", "d", "e")
-
-	testcases := []getTestcase{
+	testcases := []struct {
+		key          string
+		expectedNode string
+	}{
 		{"", "a"},
 		{"foo", "e"},
 		{"bar", "b"},
 	}
 
 	for _, testcase := range testcases {
-		gotNode := hash.Get(testcase.key)
+		gotNode := table.Get(testcase.key)
 		if gotNode != testcase.expectedNode {
 			t.Errorf("got: %#v, expected: %#v", gotNode, testcase.expectedNode)
 		}
 	}
 }
 
-func BenchmarkHashGet_5nodes(b *testing.B) {
-	hash := New("a", "b", "c", "d", "e")
+func BenchmarkGet5nodes(b *testing.B) {
+	table := New([]string{"a", "b", "c", "d", "e"})
 	for i := 0; i < b.N; i++ {
-		hash.Get(sampleKeys[i%len(sampleKeys)])
+		table.Get(sampleKeys[i%len(sampleKeys)])
 	}
 }
 
-func BenchmarkHashGet_10nodes(b *testing.B) {
-	hash := New("a", "b", "c", "d", "e", "f", "g", "h", "i", "j")
+func BenchmarkGet10nodes(b *testing.B) {
+	table := New([]string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"})
 	for i := 0; i < b.N; i++ {
-		hash.Get(sampleKeys[i%len(sampleKeys)])
+		table.Get(sampleKeys[i%len(sampleKeys)])
 	}
 }
 
-type getNTestcase struct {
-	count         int
-	key           string
-	expectedNodes []string
-}
+func TestGetN(t *testing.T) {
+	table := New([]string{"a", "b", "c", "d", "e"})
 
-func Test_Hash_GetN(t *testing.T) {
-	hash := New("a", "b", "c", "d", "e")
-
-	testcases := []getNTestcase{
+	testcases := []struct {
+		count         int
+		key           string
+		expectedNodes []string
+	}{
 		{1, "foo", []string{"e"}},
 		{2, "bar", []string{"b", "d"}},
 		{3, "baz", []string{"d", "a", "b"}},
@@ -86,7 +82,7 @@ func Test_Hash_GetN(t *testing.T) {
 	}
 
 	for _, testcase := range testcases {
-		gotNodes := hash.GetN(testcase.count, testcase.key)
+		gotNodes := table.GetN(testcase.count, testcase.key)
 		if !reflect.DeepEqual(gotNodes, testcase.expectedNodes) {
 			t.Errorf("got: %#v, expected: %#v", gotNodes, testcase.expectedNodes)
 		}
@@ -94,42 +90,42 @@ func Test_Hash_GetN(t *testing.T) {
 }
 
 func TestDistribution(t *testing.T) {
-	hash := New("a", "b", "c", "d", "e")
+	table := New([]string{"a", "b", "c", "d", "e"})
 	got := map[string]int{"a": 0, "b": 0, "c": 0, "d": 0, "e": 0}
 	for _, key := range sampleKeys {
 		for i := 999; i < 1192; i++ {
 			k := fmt.Sprintf("/%d/%s", i, key)
-			slot := hash.Get(k)
+			slot := table.Get(k)
 			got[slot] = got[slot] + 1
 		}
 	}
 	t.Logf("%#v\n", got)
 }
 
-func BenchmarkHashGetN3_5_nodes(b *testing.B) {
-	hash := New("a", "b", "c", "d", "e")
+func BenchmarkGetN3_5nodes(b *testing.B) {
+	table := New([]string{"a", "b", "c", "d", "e"})
 	for i := 0; i < b.N; i++ {
-		hash.GetN(3, sampleKeys[i%len(sampleKeys)])
+		table.GetN(3, sampleKeys[i%len(sampleKeys)])
 	}
 }
 
-func BenchmarkHashGetN5_5_nodes(b *testing.B) {
-	hash := New("a", "b", "c", "d", "e")
+func BenchmarkGetN5_5nodes(b *testing.B) {
+	table := New([]string{"a", "b", "c", "d", "e"})
 	for i := 0; i < b.N; i++ {
-		hash.GetN(5, sampleKeys[i%len(sampleKeys)])
+		table.GetN(5, sampleKeys[i%len(sampleKeys)])
 	}
 }
 
-func BenchmarkHashGetN3_10_nodes(b *testing.B) {
-	hash := New("a", "b", "c", "d", "e", "f", "g", "h", "i", "j")
+func BenchmarkGetN3_10nodes(b *testing.B) {
+	table := New([]string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"})
 	for i := 0; i < b.N; i++ {
-		hash.GetN(3, sampleKeys[i%len(sampleKeys)])
+		table.GetN(3, sampleKeys[i%len(sampleKeys)])
 	}
 }
 
-func BenchmarkHashGetN5_10_nodes(b *testing.B) {
-	hash := New("a", "b", "c", "d", "e", "f", "g", "h", "i", "j")
+func BenchmarkGetN5_10nodes(b *testing.B) {
+	table := New([]string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"})
 	for i := 0; i < b.N; i++ {
-		hash.GetN(5, sampleKeys[i%len(sampleKeys)])
+		table.GetN(5, sampleKeys[i%len(sampleKeys)])
 	}
 }
