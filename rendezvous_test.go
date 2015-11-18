@@ -37,14 +37,7 @@ type getTestcase struct {
 }
 
 func TestHashGet(t *testing.T) {
-	hash := New()
-
-	gotNode := hash.Get("foo")
-	if len(gotNode) != 0 {
-		t.Errorf("got: %#v, expected: %#v", gotNode, "")
-	}
-
-	hash.Add("a", "b", "c", "d", "e")
+	hash := New("a", "b", "c", "d", "e")
 
 	testcases := []getTestcase{
 		{"", "a"},
@@ -81,14 +74,7 @@ type getNTestcase struct {
 }
 
 func Test_Hash_GetN(t *testing.T) {
-	hash := New()
-
-	gotNodes := hash.GetN(2, "foo")
-	if len(gotNodes) != 0 {
-		t.Errorf("got: %#v, expected: %#v", gotNodes, []string{})
-	}
-
-	hash.Add("a", "b", "c", "d", "e")
+	hash := New("a", "b", "c", "d", "e")
 
 	testcases := []getNTestcase{
 		{1, "foo", []string{"e"}},

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"sort"
+	"sync"
 )
 
 type nodeScore struct {
@@ -11,28 +12,24 @@ type nodeScore struct {
 	score uint32
 }
 
-type byScore []nodeScore
+type nodeScores []nodeScore
 
-func (s byScore) Len() int           { return len(s) }
-func (s byScore) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s byScore) Less(i, j int) bool { return s[i].score < s[j].score }
+func (n nodeScores) Len() int           { return len(n) }
+func (n nodeScores) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
+func (n nodeScores) Less(i, j int) bool { return n[i].score < n[j].score }
 
 type Hash struct {
-	nodes []nodeScore
-	buf   bytes.Buffer
+	nodes   []string
+	bufPool sync.Pool
 }
 
-// New creates a new Hash with the given keys (optional).
+// New creates a new Hash with the given keys.
 func New(nodes ...string) *Hash {
-	hash := &Hash{}
-	hash.Add(nodes...)
-	return hash
-}
-
-// Add takes any number of nodes and adds them to this Hash.
-func (h *Hash) Add(nodes ...string) {
-	for _, node := range nodes {
-		h.nodes = append(h.nodes, nodeScore{node, 0})
+	return &Hash{
+		nodes: nodes,
+		bufPool: sync.Pool{New: func() interface{} {
+			return &bytes.Buffer{}
+		}},
 	}
 }
 
@@ -44,10 +41,10 @@ func (h *Hash) Get(key string) string {
 	var score uint32
 
 	for _, node := range h.nodes {
-		score = h.hash(node.node, key)
+		score = h.hash(node, key)
 		if score > maxScore {
 			maxScore = score
-			maxNode = node.node
+			maxNode = node
 		}
 	}
 
@@ -55,7 +52,7 @@ func (h *Hash) Get(key string) string {
 }
 
 // GetN returns n nodes for the given key, ordered by descending score.
-func (h *Hash) GetN(n int, key string) []string {
+func (h *Hash) GetN(n int, key string) (nodes []string) {
 	if len(h.nodes) == 0 || n == 0 {
 		return []string{}
 	}
@@ -64,24 +61,27 @@ func (h *Hash) GetN(n int, key string) []string {
 		n = len(h.nodes)
 	}
 
-	for i := 0; i < len(h.nodes); i++ {
-		h.nodes[i].score = h.hash(h.nodes[i].node, key)
+	ns := make(nodeScores, len(h.nodes))
+	for i, node := range h.nodes {
+		ns[i] = nodeScore{node, h.hash(node, key)}
 	}
-	sort.Sort(sort.Reverse(byScore(h.nodes)))
+	sort.Sort(sort.Reverse(ns))
 
-	nodes := make([]string, n)
+	nodes = make([]string, n)
 	for i := 0; i < n; i++ {
-		nodes[i] = string(h.nodes[i].node)
+		nodes[i] = string(ns[i].node)
 	}
 	return nodes
 }
 
 func (h *Hash) hash(node, key string) (val uint32) {
-	h.buf.Reset()
-	h.buf.WriteString(node)
-	h.buf.WriteString(key)
-	for _, b := range md5.Sum(h.buf.Bytes()) {
+	buf := h.bufPool.Get().(*bytes.Buffer)
+	buf.WriteString(node)
+	buf.WriteString(key)
+	for _, b := range md5.Sum(buf.Bytes()) {
 		val = val + uint32(b)
 	}
+	buf.Reset()
+	h.bufPool.Put(buf)
 	return val
 }
